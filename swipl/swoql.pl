@@ -55,13 +55,13 @@ vocabulary(_{
     'Class': 'owl:Class',
     'DatatypeProperty': 'owl:DatatypeProperty',
     'ObjectProperty': 'owl:ObjectProperty',
-    'Entity': 'tcs:Entity',
-    'Document': 'tcs:Document',
-    'Relationship': 'tcs:Relationship',
-    'temporality': 'tcs:temporality',
-    'geotemporality': 'tcs:geotemporality',
-    'geography': 'tcs:geography',
-    'abstract': 'tcs:abstract',
+    'Entity': 'system:Entity',
+    'Document': 'system:Document',
+    'Relationship': 'system:Relationship',
+    'temporality': 'system:temporality',
+    'geotemporality': 'system:geotemporality',
+    'geography': 'system:geography',
+    'abstract': 'system:abstract',
     'comment': 'rdfs:comment',
     'range': 'rdfs:range',
     'domain': 'rdfs:domain',
@@ -103,8 +103,8 @@ begins_with_reserved_colon(S) :-
    (begins_with_pattern_colon(S, rdfs);
     begins_with_pattern_colon(S, rdf);
     begins_with_pattern_colon(S, owl);
-    begins_with_pattern_colon(S, tcs);
-    begins_with_pattern_colon(S, terminus);
+    begins_with_pattern_colon(S, api);
+    begins_with_pattern_colon(S, system);
     begins_with_pattern_colon(S, xsd);
     begins_with_pattern_colon(S, xdd)).
 
@@ -867,7 +867,7 @@ ask_doctype(ArgList, DictIn, DictOut) :-
   start_scope(doc, DocName, DictIn, Dict1),
   jsonise_scm(DocName, JDocName),
   do_ask(and([add_quad(JDocName, 'rdf:type', 'owl:Class', 'schema/main'),
-                add_quad(JDocName, 'rdfs:subClassOf', 'terminus:Document', 'schema/main')]),
+                add_quad(JDocName, 'rdfs:subClassOf', 'system:Document', 'schema/main')]),
            _, Dict1, Dict2),
   do_ask(Qualifier, _, Dict2, DictOut).
 
@@ -1516,17 +1516,17 @@ result_success(Result) :-
     -> true
     ;  logging:fatal('\'result_success\' requires a bound argument..')),
   result_to_dict(Result, Dict),
-  (is_dict(Dict)
-   -> (get_dict('terminus:status', Dict, Terminus_Result)
-      -> (Terminus_Result == "terminus:success"               %NB: have to use string quotes here,  not ''
-          -> true
-          ;  logging:info('\'terminus:status\' = \'~w\' in result ~w passed to \'result_success\'', [Terminus_Result, Result]),
-             false)
-      ;  (get_dict('terminus:agent_key_hash', Dict, _)
-          -> true                                  % Call was actually a 'connect',  and the result looks valid
-          ;  (get_dict('bindings', Dict, _)
-             -> logging:info('\'bindings\' received in result passed to \'result_success\': ~w', [Result])
-            ;   logging:info('Missing response in result passed to \'result_success\': ~w', [Result]),
-                false)))
-   ; logging:info('\'result_success\' has a non-dict result: ~w', [Result]),
-     false).
+  (   is_dict(Dict)
+  ->  (   get_dict('api:status', Dict, Terminus_Result)
+      ->  (   Terminus_Result == "api:success"               %NB: have to use string quotes here,  not ''
+          ->  true
+          ;   logging:info('\'api:status\' = \'~w\' in result ~w passed to \'result_success\'', [Terminus_Result, Result]),
+              false)
+      ;   (   get_dict('@type', Dict, "system:User")
+          ->  true                                  % Call was actually a 'connect',  and the result looks valid
+          ;   (   get_dict('bindings', Dict, _)
+              ->  logging:info('\'bindings\' received in result passed to \'result_success\': ~w', [Result])
+              ;   logging:info('Missing response in result passed to \'result_success\': ~w', [Result]),
+                  false)))
+   ;  logging:info('\'result_success\' has a non-dict result: ~w', [Result]),
+      false).
