@@ -97,8 +97,8 @@ build_query_url(Server, User, DB, Query_url) :-        % Needs recoding to handl
   non_null('User', User),
   non_null('Database', DB),
   (ends_with(Server, '/')
-  -> atomic_list_concat([Server, 'woql/', User, '/', DB, '/local/branch/master'], Query_url)
-  ;  atomic_list_concat([Server, '/woql/', User, '/', DB, '/local/branch/master'], Query_url)).
+  -> atomic_list_concat([Server, 'woql/', User, '/', DB, '/local/branch/main'], Query_url)
+  ;  atomic_list_concat([Server, '/woql/', User, '/', DB, '/local/branch/main'], Query_url)).
 
 
 % build_graph_URL(+Server, +User, +DB, +GType, +GId, -Graph_URI)
@@ -109,8 +109,8 @@ build_graph_URL(Server, User, DB, GType, GId, Graph_URI) :-
   non_null('Graph type', GType),
   non_null('Graph ID', GId),
   (ends_with(Server, '/')
-  -> atomic_list_concat([Server, 'graph/', User, '/', DB, '/local/branch/master/schema/main'], Graph_URI)
-  ;  atomic_list_concat([Server, '/graph/', User, '/', DB, '/local/branch/master/schema/main'], Graph_URI)).
+  -> atomic_list_concat([Server, 'graph/', User, '/', DB, '/local/branch/main/schema/main'], Graph_URI)
+  ;  atomic_list_concat([Server, '/graph/', User, '/', DB, '/local/branch/main/schema/main'], Graph_URI)).
 
 
 
