@@ -69,13 +69,13 @@ get_key_with_default(Key, Dict, Default, X) :-
 % build_DB_URI(+Server, +User, +DB, -DB_URI)
 build_DB_URI(Server, User, DB, DB_URI) :-
   (ends_with(Server, '/')
-  -> atomic_list_concat([Server, 'db/', User, '/', DB], DB_URI)
-  ;  atomic_list_concat([Server, '/db/', User, '/', DB], DB_URI)).
+  -> atomic_list_concat([Server, 'api/db/', User, '/', DB], DB_URI)
+  ;  atomic_list_concat([Server, '/api/db/', User, '/', DB], DB_URI)).
 
 
 % build_DB_URI2(+Server, +DB, +EndPoint, -DB_URI)
 build_DB_URI2(Server, DB, EndPoint, DB_URI) :-
-  atomic_list_concat([DB, '/', EndPoint], Path),
+  atomic_list_concat([DB, '/api/', EndPoint], Path),
   build_DB_URI(Server, Path, DB_URI).
 
 
@@ -97,8 +97,8 @@ build_query_url(Server, User, DB, Query_url) :-        % Needs recoding to handl
   non_null('User', User),
   non_null('Database', DB),
   (ends_with(Server, '/')
-  -> atomic_list_concat([Server, 'woql/', User, '/', DB, '/local/branch/main'], Query_url)
-  ;  atomic_list_concat([Server, '/woql/', User, '/', DB, '/local/branch/main'], Query_url)).
+  -> atomic_list_concat([Server, 'api/woql/', User, '/', DB, '/local/branch/main'], Query_url)
+  ;  atomic_list_concat([Server, '/api/woql/', User, '/', DB, '/local/branch/main'], Query_url)).
 
 
 % build_graph_URL(+Server, +User, +DB, +GType, +GId, -Graph_URI)
@@ -109,8 +109,8 @@ build_graph_URL(Server, User, DB, GType, GId, Graph_URI) :-
   non_null('Graph type', GType),
   non_null('Graph ID', GId),
   (ends_with(Server, '/')
-  -> atomic_list_concat([Server, 'graph/', User, '/', DB, '/local/branch/main/schema/main'], Graph_URI)
-  ;  atomic_list_concat([Server, '/graph/', User, '/', DB, '/local/branch/main/schema/main'], Graph_URI)).
+  -> atomic_list_concat([Server, 'api/graph/', User, '/', DB, '/local/branch/main/schema/main'], Graph_URI)
+  ;  atomic_list_concat([Server, '/api/graph/', User, '/', DB, '/local/branch/main/schema/main'], Graph_URI)).
 
 
 
@@ -209,7 +209,8 @@ Cli.connect(Result) := client{ac: A, ctxt: C, db: D, url:X, user:Y, key:Z} :-
     (var(Result)
     -> true
     ;  logging:fatal('\'connect\' requires an unbound argument..')),
-    dispatch(Cli, Cli.url, 'connect', {}, Result, ''),
+    atomic_list_concat([Cli.url, '/api'], URL),
+    dispatch(Cli, URL, 'connect', {}, Result, ''),
     extract_context(Result, C),
     A = Cli.ac, D = Cli.db, X = Cli.url, Y = Cli.user, Z = Cli.key.
 

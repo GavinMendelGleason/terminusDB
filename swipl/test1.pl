@@ -10,41 +10,31 @@ user('admin').
 key('root').
 data_url('https://raw.githubusercontent.com/Chrisjhorn/terminusDB/master/python/jupyter-tutorials/tutorial2/people.csv').
 
+escape_pcre(String, Escaped) :-
+    re_replace('[-[\\]{}()*+?.,\\\\^$|#\\s]'/g, '\\\\0', String, Escaped).
 
-check_terminus_error(Name, Key, Dict, Error, Offset) :-
-  get_dict(Key, Dict, ErrMsg),
-  string_length(Error, Len),
-  string_length(ErrMsg, Len1),
-  ((Len1 >= Len, Len > 0)
-    ->   sub_string(ErrMsg, Offset, Len, _, XXX),
-         atom_string(Error,E), atom_string(XXX,X),
-         (E == X
-          -> format('- ~w got expected exception -------------------------------------------------~n', Name),
-             true
-           ; false)
-    ; false)
-; false.
+check_terminus_error_(Key, Dict, Pattern) :-
+    get_dict(Key, Dict, ErrMsg),
+    re_match(Pattern, ErrMsg).
 
-terminus_message(Name, Dict, ErrType, ErrMsg) :-
-  ErrType == 'tm'
-  ->  check_terminus_error(Name, 'terminus:message', Dict, ErrMsg, 0)
-    ; false.
+check_terminus_error(Name, Key, Dict, Error, 0) :-
+    atomic_list_concat(['^',Error,'.*'], Pattern),
+    check_terminus_error_(Key, Dict, Pattern),
+    format('- ~w got expected exception -------------------------------------------------~n', Name).
 
-witness_message(Name, Arg, ErrType, ErrMsg) :-
-  ErrType == 'vi'
-  -> (is_dict(Arg)
-      ->  (get_dict('terminus:witnesses', Arg, List)
-           -> [Dict2|_] = List,
-              is_dict(Dict2),
-              check_terminus_error(Name, 'vio:literal', Dict2, ErrMsg, 1)
-           ;  false)
-      ;  [Dict2|_] = Arg,
-         is_dict(Dict2),
-         (get_dict('vio:message', Dict2, Dict3)
-          -> check_terminus_error(Name, '@value', Dict3, ErrMsg, 0)
-          ;  false))
-  ; false.
-
+error_message(Name, Dict, tm, ErrMsg) :-
+    check_terminus_error(Name, 'api:message', Dict, ErrMsg, 0).
+error_message(Name, Arg, vi, ErrMsg) :-
+    (   is_dict(Arg)
+    ->  get_dict('system:witnesses', Arg, List),
+        [Dict2|_] = List,
+        is_dict(Dict2),
+        check_terminus_error(Name, 'vio:literal', Dict2, ErrMsg, 1)
+    ;   [Dict2|_] = Arg,
+        is_dict(Dict2),
+        get_dict('vio:message', Dict2, Dict3),
+        check_terminus_error(Name, '@value', Dict3, ErrMsg, 0)
+    ).
 
 test(Name, Client, Query, Inserts, ErrType, Error, Result) :-
   format('- ~w starting --------------------------------------------------------~n', Name),
@@ -52,17 +42,15 @@ test(Name, Client, Query, Inserts, ErrType, Error, Result) :-
   swoql:ask(Client,
              Query,
              Result),
-  (swoql:result_success(Result)
-   -> (swoql:result_check_statistic('inserts', Inserts, Result)
-       -> true
-       ;  logging:fatal('~w failed: expected ~w inserts~n', [Name, Inserts]))
-   ;  (swoql:result_to_dict(Result, Dict),
-      (terminus_message(Name, Dict, ErrType, Error)
-      -> true
-      ;  (witness_message(Name, Dict, ErrType, Error)
-         -> true
-         ;  format('witness_message failed...~n'),
-            logging:fatal('~w failed...~w', [Name, Result]))))),
+  (   swoql:result_success(Result)
+  ->  (   swoql:result_check_statistic('inserts', Inserts, Result)
+      ->  true
+      ;   logging:fatal('~w failed: expected ~w inserts~n', [Name, Inserts]))
+  ;   (   swoql:result_to_dict(Result, Dict),
+          (   error_message(Name, Dict, ErrType, Error)
+          ->  true
+          ;   format('witness_message failed...~n'),
+              logging:fatal('~w failed...~w', [Name, Result])))),
   format('- ~w Done ------------------------------------------------------------~n~n', Name),
   logging:info('- ~w Done ------------------------------------------------------~n~n', [Name]).
 
@@ -144,10 +132,10 @@ run() :-
 
     test('Test-Q1', Client, quad('AAA', 'BBB', 'CCC', 'DDD'), 'vi', 'Unable to compile AST query'),
 
-    test('Test-AQ1', Client, add_quad('AAA', 'BBB', 'CCC', 'DDD'), 'vi', 'Unable to compile AST query'),
-    test('Test-AQ2', Client, add_quad('scm:PersonType', 'BBB', 'CCC', 'DDD'), 'vi', 'Unable to compile AST query'),
-    test('Test-AQ3', Client, add_quad('scm:PersonType', 'rdf:type', 'CCC', 'DDD'), 'vi', 'Unable to compile AST query'),
-    test('Test-AQ4', Client, add_quad('scm:PersonType', 'rdf:type', 'owl:Class', 'DDD'), 'vi', 'Unable to compile AST query'),
+    test('Test-AQ1', Client, add_quad('AAA', 'BBB', 'CCC', 'DDD'), 'tm', 'Badly formed ast after compilation with term'),
+    test('Test-AQ2', Client, add_quad('scm:PersonType', 'BBB', 'CCC', 'DDD'), 'tm', 'Badly formed ast after compilation with term'),
+    test('Test-AQ3', Client, add_quad('scm:PersonType', 'rdf:type', 'CCC', 'DDD'), 'tm', 'Badly formed ast after compilation with term'),
+    test('Test-AQ4', Client, add_quad('scm:PersonType', 'rdf:type', 'owl:Class', 'DDD'), 'tm', 'Badly formed ast after compilation with term'),
     test('Test-AQ5', Client, add_quad('scm:PersonType', 'rdf:type', 'owl:Class', 'schema/main'), 1),
 
     test('Test-And1', Client, and([triple('AAA', 'BBB', 'CCC')])),
@@ -282,8 +270,8 @@ run() :-
 
  test('Test-Concat1', Client, concat('Journey from v:Start_ID to v:End_ID at v:Start_Time', 'v:Journey_Label')),
 
- test('Test-TypeCast1', Client, cast('v:Duration', v('Duration_Cast')^^integer), 'tm', 'Error: \'Variable unbound in typcast to'),  % server spelling mistake!
- test('Test-TypeCast2', Client, cast(v('Duration'), v('Duration_Cast')^^'xsd:integer'), 'tm', 'Error: \'Variable unbound in typcast to'),
+ test('Test-TypeCast1', Client, cast('v:Duration', v('Duration_Cast')^^integer), 'tm', 'Error: \'Variable unbound in typecast'),  % server spelling mistake!
+ test('Test-TypeCast2', Client, cast(v('Duration'), v('Duration_Cast')^^'xsd:integer'), 'tm', 'Error: \'Variable unbound in typecast to'),
 
  test('Test-Opt1', Client, opt(triple('AAA', 'BBB', 'CCC'))),
 
